@@ -1,0 +1,3 @@
+admin ALL=(root) NOPASSWD: /usr/bin/systemctl restart mycloud
+admin ALL=(root) NOPASSWD: /usr/bin/systemctl status mycloud
+admin ALL=(root) NOPASSWD: /usr/bin/systemctl is-active mycloud
