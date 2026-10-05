@@ -6,8 +6,11 @@
 set -e
 
 APP_NAME="mycloud"
-APP_DIR="/home/admin/apps/mycloud"
+APP_DIR="/home/deploy/apps/mycloud"
 VENV_DIR="$APP_DIR/venv"
+SERVICE_USER="${SERVICE_USER:-$(whoami)}"
+
+echo "=== SERVICE_USER = $SERVICE_USER ==="
 
 echo "=== Развёртывание $APP_NAME ==="
 
@@ -25,12 +28,12 @@ fi
 # Системные пакеты
 echo "=== Установка системных пакетов ==="
 sudo apt update
-sudo apt install -y python3.11 python3.11-venv python3-pip nginx git sqlite3
+sudo apt install -y python3 python3-venv python3-pip nginx git sqlite3
 
 # venv
 echo "=== Создание venv ==="
 if [ ! -d "$VENV_DIR" ]; then
-    python3.11 -m venv "$VENV_DIR"
+    python3 -m venv "$VENV_DIR"
 fi
 source "$VENV_DIR/bin/activate"
 
@@ -53,7 +56,11 @@ sudo systemctl reload nginx
 
 # systemd
 echo "=== Настройка systemd ==="
-sudo cp "$APP_DIR/deploy/systemd/$APP_NAME.service" "/etc/systemd/system/$APP_NAME.service"
+tmp_service="$(mktemp)"
+sed "s|__SERVICE_USER__|$SERVICE_USER|g" \
+    "$APP_DIR/deploy/systemd/$APP_NAME.service" > "$tmp_service"
+sudo cp "$tmp_service" "/etc/systemd/system/$APP_NAME.service"
+rm -f "$tmp_service"
 sudo systemctl daemon-reload
 sudo systemctl enable "$APP_NAME"
 sudo systemctl restart "$APP_NAME"
@@ -62,9 +69,12 @@ sudo systemctl restart "$APP_NAME"
 echo "=== Настройка sudoers ==="
 for f in "$APP_DIR/deploy/sudoers/"*; do
     name=$(basename "$f")
-    sudo cp "$f" "/etc/sudoers.d/$name"
+    tmp_sudoers="$(mktemp)"
+    sed "s|__SERVICE_USER__|$SERVICE_USER|g" "$f" > "$tmp_sudoers"
+    sudo cp "$tmp_sudoers" "/etc/sudoers.d/$name"
     sudo chmod 0440 "/etc/sudoers.d/$name"
     sudo chown root:root "/etc/sudoers.d/$name"
+    rm -f "$tmp_sudoers"
 done
 sudo visudo -c
 

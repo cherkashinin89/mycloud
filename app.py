@@ -111,8 +111,17 @@ def create_app(config_class=Config):
     # Вместо собственной страницы логина — редирект на myframework.
     @login_manager.unauthorized_handler
     def unauthorized():
-        # Отправляем на основную страницу входа основного приложения
-        return redirect('http://192.168.2.18/login')
+        # Отправляем на основную страницу входа основного приложения.
+        # URL берём из SiteSettings (общая БД), чтобы не хардкодить IP/домен.
+        try:
+            settings = SiteSettings.get()
+            base = settings.site_base_url if settings else None
+        except Exception as e:
+            app.logger.warning(f'unauthorized_handler: {e}')
+            base = None
+        if not base:
+            base = ''
+        return redirect(f'{base}/login')
 
     # === КОРНЕВОЙ МАРШРУТ (проверка каркаса) ===
     @app.route('/')
